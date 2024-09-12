@@ -30,7 +30,7 @@ class QuestionEvaluation(BaseModel):
 class QuestionRefinement(BaseModel):
     questions: List[QuestionEvaluation] = Field(description="List of evaluated and refined questions")
 
-class ChatInteractionCreateModel(BaseModel):
+class ChatInteractionCreateModel(SQLModel):
     userQuestionId: UUID = Field(foreign_key="user_question.id")
     id: UUID = Field(default_factory=uuid4, primary_key=True)
 
@@ -43,14 +43,16 @@ class ChatInteraction(ChatInteractionCreateModel, table=True):
     question: "UserQuestion" = Relationship(back_populates="chatInteraction")
     chatMessages: List["ChatMessage"] = Relationship(back_populates="chatInteraction")
 
-    
-class ChatMessage(SQLModel, table=True):
-    __tablename__ = "chat_message"
+class ChatMessageCreateModel(SQLModel):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    chatInteractionId: UUID = Field(foreign_key="chat_interaction.id")
-    chatInteraction: ChatInteraction = Relationship(back_populates="chatMessages")
     message: str
     messageType: str
+
+    
+class ChatMessage(ChatMessageCreateModel, table=True):
+    __tablename__ = "chat_message"
+    chatInteractionId: UUID = Field(foreign_key="chat_interaction.id")
+    chatInteraction: ChatInteraction = Relationship(back_populates="chatMessages")
     createdAt: datetime = Field(default_factory=datetime.utcnow)
 
 
