@@ -137,8 +137,8 @@ async def create_chat_message(chatInteractionId: UUID, payload: ChatMessageCreat
     )
     await insert_into_sqlite(user_message)
     chat_messages = await get_all_records(ChatMessage, filter_by={"chatInteractionId": chat_interaction.id})
-    response = await continue_chat_interaction(chat_messages, chat_interaction)
-    return response
+    await continue_chat_interaction(chat_messages, chat_interaction)
+    return user_message
 
 
 @router.get("/chatInteractions/{chatInteractionId}/chatMessages", response_model=List[ChatMessage])
@@ -148,4 +148,4 @@ async def get_chat_messages(chatInteractionId: UUID):
         raise HTTPException(status_code=404, detail="Chat interaction not found")
     
     chat_messages = await get_all_records(ChatMessage, filter_by={"chatInteractionId": chatInteractionId})
-    return sorted(chat_messages, key=lambda x: x.createdAt, reverse=True)
+    return sorted(chat_messages, key=lambda x: x.createdAt)
