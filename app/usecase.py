@@ -200,7 +200,7 @@ async def generate_final_evaluation_report(user_assessment: UserAssessment, user
     4. Learning Progress
     5. Final Accuracy
 
-    For each area, provide a score from 1-5 and a brief final explanation in overallFeedback. Also, provide general feedback and recommendations for improvement.
+    For each area, provide a score from 1-5 and a brief final explanation in overallFeedback. Address the user directly in first person, providing personalized feedback and specific, actionable recommendations for improvement based on their performance.
     """
     
     final_evaluation = await openai_chat_completion(
