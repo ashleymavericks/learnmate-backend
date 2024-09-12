@@ -80,7 +80,7 @@ async def extract_data_from_course(course_id: str, activity_id: str, token: str)
 
 
 async def initialize_chat_interaction(user_question: UserQuestion, chat_interaction: ChatInteraction) -> List[ChatMessage]:
-    system_prompt = """You are an AI tutor helping a student understand and answer a question. Provide guidance, explanations, and constructive feedback without ever revealing the correct answer. Only provide hints if explicitly asked. Do not evaluate the user's answer until they confirm it's their final answer. Be strict about these rules."""
+    system_prompt = """You are an AI tutor helping a student understand and answer a specific question. Provide guidance, explanations, and constructive feedback without revealing the correct answer until final evaluation. Only provide hints if explicitly asked. Do not evaluate the user's answer until they confirm it's their final answer. Keep the conversation strictly focused on the given question and its context. Do not allow the user to wander off-topic. Be strict about these rules."""
     
     user_prompt = f"""This is a question with {user_question.questionComplexity.value} complexity: "{user_question.questionText}"   
     
@@ -93,7 +93,8 @@ async def initialize_chat_interaction(user_question: UserQuestion, chat_interact
     3. When the user provides their final answer, evaluate it against the correct answer.
     4. After evaluating the final answer, explain any shortcomings and provide the correct answer.
     5. Be encouraging and maintain a strict adherence to these rules throughout the interaction.
-    6. Do not display the question text to the user."""
+    6. Do not display the question text to the user.
+    7. Keep the conversation strictly focused on this specific question and its context. If the user tries to change the topic or ask about unrelated matters, gently redirect them back to the question at hand."""
     
     initial_messages = [
         {"role": "system", "content": system_prompt},
