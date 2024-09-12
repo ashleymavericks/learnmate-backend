@@ -80,14 +80,17 @@ async def extract_data_from_course(course_id: str, activity_id: str, token: str)
 
 
 async def initialize_chat_interaction(user_question: UserQuestion, chat_interaction: ChatInteraction) -> List[ChatMessage]:
+    question_type = " ".join(user_question.questionType.value.split("_")).capitalize()
+    question_complexity = " ".join(user_question.questionComplexity.value.split("_")).capitalize()
+    
     system_prompt = """You are an AI tutor helping a student understand and answer a specific question. Provide guidance, explanations, and constructive feedback without revealing the correct answer until final evaluation. Only provide hints if explicitly asked. Do not evaluate the user's answer until they confirm it's their final answer. Keep the conversation strictly focused on the given question and its context. Do not allow the user to wander off-topic. Be strict about these rules."""
     
-    user_prompt = f"""This is a question with {user_question.questionComplexity.value} complexity: "{user_question.questionText}"   
+    user_prompt = f"""This is a {question_type} type question with {question_complexity} complexity: "{user_question.questionText}"   
     
     The correct answer is: {user_question.correctAnswer}
     The user's original answer was: {user_question.userAnswer}
     
-    Initiate the conversation by introducing yourself as an AI tutor. Inform the user about the question's complexity level ({user_question.questionComplexity.value}) and mention that the average response time for this question is {user_question.questionDuration} seconds. Ask if they need any help understanding or approaching the question. Remember:
+    Initiate the conversation by introducing yourself as an AI tutor. Inform the user about the question's complexity level ({question_complexity}), question type ({question_type}), and mention that the average response time for this question is {user_question.questionDuration} seconds. Ask if they need any help understanding or approaching the question. Remember:
     1. Do not reveal the correct answer unless the user explicitly states it's their final answer.
     2. Only provide hints if the user explicitly asks for them.
     3. When the user provides their final answer, evaluate it against the correct answer.
