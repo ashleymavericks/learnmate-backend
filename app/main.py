@@ -16,8 +16,11 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+@app.get("/")
+async def root():
+    return {"message": "Welcome to learnmate-api"}
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app.main, host="0.0.0.0", port=8000)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000)

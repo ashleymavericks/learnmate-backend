@@ -9,7 +9,7 @@ from uuid import UUID
 
 router = APIRouter()
 
-@router.post("/userAssessment", response_model=UserAssessment)
+@router.post("/userAssessments", response_model=UserAssessment)
 async def process_data(request: Request, payload: UserAssessment):
     token = request.headers.get("Authorization")
     
@@ -57,7 +57,7 @@ async def process_data(request: Request, payload: UserAssessment):
     else:
         raise HTTPException(status_code=404, detail="UserAssessment not found after insertion")
     
-@router.patch("/userAssessment/{userAssessmentId}", response_model=UserAssessment)
+@router.patch("/userAssessments/{userAssessmentId}", response_model=UserAssessment)
 async def update_user_assessment(userAssessmentId: UUID, payload: UserAssessment):
     user_assessment = await get_record(UserAssessment, userAssessmentId)
     if not user_assessment:
@@ -75,7 +75,7 @@ async def update_user_assessment(userAssessmentId: UUID, payload: UserAssessment
     return await update_record(UserAssessment, userAssessmentId, **payload.model_dump(exclude_unset=True))
     
 
-@router.get("/userAssessment/{userAssessmentId}/userQuestions", response_model=List[UserQuestion])
+@router.get("/userAssessments/{userAssessmentId}/userQuestions", response_model=List[UserQuestion])
 async def get_user_assessment(userAssessmentId: UUID, request: Request):
     user_assessment = await get_record(UserAssessment, userAssessmentId)
     if not user_assessment:
