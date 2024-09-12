@@ -9,7 +9,7 @@ from uuid import UUID
 
 router = APIRouter()
 
-@router.post("/userAssessments", response_model=UserAssessment)
+@router.put("/userAssessments", response_model=UserAssessment)
 async def process_data(request: Request, payload: UserAssessment):
     token = request.headers.get("Authorization")
     
@@ -36,7 +36,7 @@ async def process_data(request: Request, payload: UserAssessment):
     
     check_existing_user_questions = await get_all_records(UserQuestion, filter_by={"userId": user_id, "courseId": course_id})
     if check_existing_user_questions:
-        raise HTTPException(status_code=400, detail="User questions already exist")
+        return check_existing_user_questions[0]
     
     await insert_into_sqlite(user_questions)
     
