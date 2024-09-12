@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
-from app.schema import UserAssessment, UserQuestion
-from app.usecase import evaluate_question_complexity
-from app.usecase import extract_data_from_course
+from app.schema import UserAssessment, UserQuestion, ChatInteraction, ChatMessage
+from app.usecase import evaluate_question_complexity, extract_data_from_course
 from app.db_adapter import insert_into_sqlite, get_record, get_all_records, update_record
 import random
 from typing import List
@@ -81,7 +80,7 @@ async def get_user_assessment(userAssessmentId: UUID, request: Request):
     if not user_assessment:
         raise HTTPException(status_code=404, detail="User assessment not found")
     
-    question_details = await get_all_records(UserQuestion, filter_by={"userAssessmentId": userAssessmentId})
+    question_details = await get_all_records(UserQuestion, filter_by={"userAssessmentId": userAssessmentId, "isStudyComplete": False})
     total_questions = len(question_details)
     
     question_count_to_practice = user_assessment.questionCountToPractice
@@ -89,23 +88,45 @@ async def get_user_assessment(userAssessmentId: UUID, request: Request):
     selected_questions = [question_details[i] for i in selected_indices]
     return selected_questions
 
-# @router.post("/chatInteraction", response_model=ChatInteraction)
-# async def create_chat_interaction(payload: ChatInteraction, request: Request):
-#     try:
-#         token = request.headers.get("Authorization")
-#         payload_dict = payload.model_dump()
-#         course_id = str(payload_dict['courseId'])
-#         activity_id = str(payload_dict['activityId'])
-        
-# @router.get("/chatInteraction/{chatInteractionId}/messages", response_model=ChatInteraction)
+
+@router.put("/chatInteractions", response_model=ChatInteraction)
+async def create_chat_interaction(payload: ChatInteraction, request: Request):
+    
+    payload_dict = payload.model_dump()
+    payload = ChatInteraction.model_validate(payload_dict)
+    
+    user_question = await get_record(UserQuestion, payload.userQuestionId)
+    if not user_question:
+        raise HTTPException(status_code=404, detail="User Question not found")
+    
+    if user_question.isStudyComplete:
+        raise HTTPException(status_code=400, detail="Question study is already completed")
+    
+    chat_interaction = ChatInteraction(
+        userId=user_question.userId,
+        courseId=user_question.courseId,
+        activityId=user_question.activityId,
+        userQuestionId=user_question.id
+    )
+    # TODO: When to update the isStudyComplete to True
+    existing_chat_interaction = await get_all_records(ChatInteraction, filter_by={"userQuestionId": user_question.id})
+    if existing_chat_interaction:
+        return existing_chat_interaction[0]
+    
+    inserted_chat_interaction = await insert_into_sqlite(chat_interaction)
+    if inserted_chat_interaction:
+        return inserted_chat_interaction
+    else:
+        raise HTTPException(status_code=500, detail="Failed to create chat interaction")
+
+
+# @router.get("/chatInteractions/{chatInteractionId}/messages", response_model=ChatInteraction)
 # async def get_chat_interaction_messages(chatInteractionId: UUID, request: Request):
-#     try:
-#         token = request.headers.get("Authorization")
-#         chat_interaction = await get_record(ChatInteraction, chatInteractionId)
-#         if chat_interaction:
-#             return chat_interaction
-#         else:
-#             raise HTTPException(status_code=404, detail="Chat interaction not found")
-        
+#     token = request.headers.get("Authorization")
+#     chat_interaction = await get_record(ChatInteraction, chatInteractionId)
+#     if chat_interaction:
+#         return chat_interaction
+#     else:
+#         raise HTTPException(status_code=404, detail="Chat interaction not found"        
 # @router.post("/chatEvalaution", response_model=ChatInteraction)
 

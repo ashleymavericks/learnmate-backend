@@ -20,26 +20,13 @@ class MessageTypeEnum(str, Enum):
     USER = "USER"
     ASSISTANT = "ASSISTANT"
     SYSTEM = "SYSTEM"
-    
-class ProcessData(BaseModel):
-    courseId: UUID
-    activityId: UUID | None = None
-    
-# class QuestionOptionEnum(str, Enum):
-#     A = "A"
-#     B = "B"
-#     C = "C"
-#     D = "D"
-#     E = "E"
-    
-# class QuestionOption(BaseModel):
-#     questionOption: QuestionOptionEnum
-#     questionOptionText: str
+
 
 class QuestionEvaluation(BaseModel):
     questionText: str = Field(description="The text of the question")
     questionComplexity: QuestionComplexityEnum = Field(description="The complexity level of the question")
     
+
 class QuestionRefinement(BaseModel):
     questions: List[QuestionEvaluation] = Field(description="List of evaluated and refined questions")
 
@@ -47,12 +34,11 @@ class QuestionRefinement(BaseModel):
 class ChatInteraction(SQLModel, table=True):
     __tablename__ = "chat_interaction"
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    userId: UUID
-    courseId: UUID
-    questionId: UUID = Field(foreign_key="user_question.id")
-    question: "UserQuestion" = Relationship(back_populates="chatInteraction")
-    activityName: str
+    userId: UUID | None = None
+    courseId: UUID | None = None
     activityId: UUID | None = None
+    userQuestionId: UUID = Field(foreign_key="user_question.id")
+    question: "UserQuestion" = Relationship(back_populates="chatInteraction")
     chatMessages: List["ChatMessage"] = Relationship(back_populates="chatInteraction")
 
     
