@@ -71,11 +71,17 @@ class UserQuestion(SQLModel, table=True):
     userAssessmentId: UUID | None = Field(default=None, foreign_key="user_assessment.id")
     userAssessment: "UserAssessment" = Relationship(back_populates="questions")
     chatInteraction: List["ChatInteraction"] = Relationship(back_populates="question")
-    
-    
-class UserAssessment(SQLModel, table=True):
-    __tablename__ = "user_assessment"
+
+class UserAssessmentUpdateModel(SQLModel):
+    questionCountToPractice: int | None = 1
+class UserAssessmentCreateModel(UserAssessmentUpdateModel):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    userId: UUID
+    courseId: UUID
+    activityId: UUID | None = None
+
+class UserAssessment(UserAssessmentCreateModel, table=True):
+    __tablename__ = "user_assessment"
     userId: UUID
     courseId: UUID
     activityId: UUID | None = None
