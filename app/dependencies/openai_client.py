@@ -23,13 +23,10 @@ async def openai_chat_completion(
     payload: dict, output_schema: BaseModel, temperature: float = 1.0
 ):
     async with openai_client_context() as client:
-        openai_response = await client.chat.completions.create(
+        openai_response = await client.beta.chat.completions.parse(
             model=OPENAI_MODEL,
             messages=payload["messages"],
             max_tokens=OPENAI_MAX_TOKEN_COUNT,
-            response_format={
-                "type": "json_object",
-                "schema": output_schema.model_json_schema()
-            }
+            response_format=output_schema
         )
-    return openai_response
+    return openai_response.choices[0].message.content

@@ -7,9 +7,9 @@ from typing import List
 
 
 class QuestionTypeEnum(str, Enum):
-    MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
+    SINGLE_ANSWER = "SINGLE_ANSWER"
     SHORT_ANSWER = "SHORT_ANSWER"
-    MULTIPLE_ANSWER = "MULTIPLE_ANSWER"
+    NUMERIC_ANSWER = "NUMERIC_ANSWER"
 
 class QuestionComplexityEnum(str, Enum):
     EASY = "EASY"
@@ -20,10 +20,29 @@ class MessageTypeEnum(str, Enum):
     USER = "USER"
     ASSISTANT = "ASSISTANT"
     SYSTEM = "SYSTEM"
+    
+class ProcessData(BaseModel):
+    courseId: UUID
+    activityId: UUID | None = None
+    
+# class QuestionOptionEnum(str, Enum):
+#     A = "A"
+#     B = "B"
+#     C = "C"
+#     D = "D"
+#     E = "E"
+    
+# class QuestionOption(BaseModel):
+#     questionOption: QuestionOptionEnum
+#     questionOptionText: str
 
+class QuestionEvaluation(BaseModel):
+    questionText: str = Field(description="The text of the question")
+    questionComplexity: QuestionComplexityEnum = Field(description="The complexity level of the question")
+    
 class QuestionRefinement(BaseModel):
-    questionText: str
-    questionComplexityEnum: QuestionComplexityEnum
+    questions: List[QuestionEvaluation] = Field(description="List of evaluated and refined questions")
+
 
 class ChatInteraction(SQLModel, table=True):
     __tablename__ = "chat_interaction"
@@ -54,14 +73,17 @@ class UserQuestion(SQLModel, table=True):
     courseId: UUID
     activityId: UUID
     questionText: str
-    questionComplexityEnum: QuestionComplexityEnum
+    questionComplexity: QuestionComplexityEnum | None = None
     questionDuration: int
-    questionTypeEnum: QuestionTypeEnum
+    questionType: QuestionTypeEnum
     correctAnswer: str
     userAnswer: str
     externalQuestionId: str
+    externalQuestionImage: str
     isStudyComplete: bool
     isCorrect: bool
+    userAssessmentId: UUID | None = Field(default=None, foreign_key="user_assessment.id")
+    userAssessment: "UserAssessment" = Relationship(back_populates="questions")
     chatInteraction: List["ChatInteraction"] = Relationship(back_populates="question")
     
     
@@ -71,7 +93,8 @@ class UserAssessment(SQLModel, table=True):
     userId: UUID
     courseId: UUID
     activityId: UUID | None = None
-    questionCount: int | None = None
+    questionCountToPractice: int | None = None
+    questions: List[UserQuestion] = Relationship(back_populates="userAssessment")
     createdAt: datetime = Field(default_factory=datetime.utcnow)
     totalQuestions: int | None = None
     totalQuestionsAnsweredCorrectly: int | None = None
