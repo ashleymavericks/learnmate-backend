@@ -4,8 +4,8 @@ from app.dependencies.http import get
 from uuid import UUID
 from datetime import datetime
 from app.db_adapter import insert_into_sqlite, get_all_records
-from app.schema import UserQuestion, QuestionRefinement, ChatMessage, ChatMessageTypeEnum, ChatInteraction
-from typing import List
+from app.schema import UserQuestion, QuestionRefinement, ChatMessage, ChatMessageTypeEnum, ChatInteraction, UserAssessment, FinalEvaluationReport
+from typing import List, Dict
 
 async def evaluate_question_complexity(extracted_question_data: List[UserQuestion]):
     question_list = []
@@ -143,3 +143,70 @@ async def continue_chat_interaction(chat_messages: List[ChatMessage], chat_inter
         messageType="ASSISTANT"
     )
     return await insert_into_sqlite(assistant_message)
+
+
+async def generate_final_evaluation_report(user_assessment: UserAssessment, user_question_chat_interactions: Dict[UserQuestion, ChatInteraction]) -> FinalEvaluationReport:
+    evaluation_prompts = []
+    for user_chat_interaction in user_question_chat_interactions:
+        chat_interaction = user_chat_interaction['chatInteraction']
+        question = user_chat_interaction['question']
+        chat_messages = await get_all_records(ChatMessage, filter_by={"chatInteractionId": chat_interaction.id})
+        chat_messages = sorted(chat_messages, key=lambda x: x.createdAt)
+        chat_history = [{"role": msg.messageType.value.lower(), "content": msg.message} for msg in chat_messages]
+        
+        prompt = f"""
+        Question: {question.questionText}
+        Complexity: {question.questionComplexity}
+        Correct Answer: {question.correctAnswer}
+        User's Original Answer: {question.userAnswer}
+        Chat History: {json.dumps(chat_history)}
+        
+        Based on this interaction, evaluate the user's performance on the following metrics:
+        1. Understanding: How well did the user understand the question?
+        2. Approach: Did the user take an appropriate approach to solve the problem?
+        3. Knowledge Application: How effectively did the user apply their knowledge?
+        4. Learning Progress: Did the user show improvement during the interaction?
+        5. Final Accuracy: Was the user's final answer correct?
+        
+        Provide a score from 1-5 for each metric and a brief explanation.
+        """
+        evaluation_prompts.append(prompt)
+    
+    evaluations = []
+    for prompt in evaluation_prompts:
+        evaluation = await openai_chat_completion(
+            payload={
+                "messages": [
+                    {"role": "system", "content": "You are an AI evaluator assessing a student's performance based on their interaction with an AI tutor on a specific question. Analyze the chat history carefully. For each metric (Understanding, Approach, Knowledge Application, Learning Progress, Final Accuracy), provide a score from 1-5 and a concise, specific explanation referencing the student's responses."},
+                    {"role": "user", "content": prompt}
+                ]
+            },
+            output_schema=FinalEvaluationReport
+        )
+        evaluations.append(evaluation)
+
+    final_prompt = f"""
+    Based on the following individual question evaluations, provide an overall assessment of the user's performance across all questions:
+
+    {json.dumps(evaluations)}
+
+    Summarize the user's performance in these five areas:
+    1. Overall Understanding
+    2. Problem-Solving Approach
+    3. Knowledge Application
+    4. Learning Progress
+    5. Final Accuracy
+
+    For each area, provide a score from 1-5 and a brief final explanation in overallFeedback. Also, provide general feedback and recommendations for improvement.
+    """
+    
+    final_evaluation = await openai_chat_completion(
+        payload={
+            "messages": [
+                {"role": "system", "content": "You are an AI evaluator providing a comprehensive final assessment of a student's overall performance based on multiple question interactions. Analyze the individual evaluations carefully to identify patterns and trends. For each of the five areas (Understanding, Problem-Solving Approach, Knowledge Application, Learning Progress, Final Accuracy), provide a score from 1-5 and a concise, evidence-based explanation. In the overallFeedback, summarize the student's strengths and weaknesses, noting any significant improvements or consistent challenges across questions. Provide specific, actionable recommendations for improvement tailored to the student's performance."},
+                {"role": "user", "content": final_prompt}
+            ]
+        },
+        output_schema=FinalEvaluationReport
+    )
+    return json.loads(final_evaluation)

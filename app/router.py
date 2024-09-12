@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
-from app.schema import UserAssessment, UserQuestion, ChatInteraction, ChatMessage, ChatMessageCreateModel, UserAssessmentCreateModel, UserAssessmentUpdateModel, ChatInteractionCreateModel, ChatMessageTypeEnum
-from app.usecase import evaluate_question_complexity, extract_data_from_course, initialize_chat_interaction, continue_chat_interaction
+from app.schema import UserAssessment, UserQuestion, ChatInteraction, ChatMessage, ChatMessageCreateModel, UserAssessmentCreateModel, UserAssessmentUpdateModel, ChatInteractionCreateModel, ChatMessageTypeEnum, FinalEvaluationReport
+from app.usecase import evaluate_question_complexity, extract_data_from_course, initialize_chat_interaction, continue_chat_interaction, generate_final_evaluation_report
 from app.db_adapter import insert_into_sqlite, get_record, get_all_records, update_record
 import random
 from typing import List
@@ -16,6 +16,10 @@ async def create_user_assessment(request: Request, payload: UserAssessmentCreate
     user_id = payload.userId
     course_id = payload.courseId
     activity_id = payload.activityId
+    
+    existing_user_assessment = await get_all_records(UserAssessment, filter_by={"userId": user_id, "courseId": course_id, "activityId": activity_id})
+    if existing_user_assessment:
+        return existing_user_assessment[0]
 
     # Insert User Questions
     extracted_question_data = await extract_data_from_course(str(course_id), str(activity_id), token)
@@ -30,11 +34,6 @@ async def create_user_assessment(request: Request, payload: UserAssessmentCreate
             total_questions_answered_correctly += 1
         else:
             total_questions_answered_wrong += 1
-
-    check_existing_user_questions = await get_all_records(UserQuestion,
-                                                          filter_by={"userId": user_id, "courseId": course_id})
-    if check_existing_user_questions:
-        return check_existing_user_questions[0]
 
     await insert_into_sqlite(user_questions)
 
@@ -100,16 +99,12 @@ async def create_chat_interaction(payload: ChatInteractionCreateModel):
     if not user_question:
         raise HTTPException(status_code=404, detail="User Question not found")
 
-    if user_question.isStudyComplete:
-        raise HTTPException(status_code=400, detail="Question study is already completed")
-
     chat_interaction = ChatInteraction(
         userId=user_question.userId,
         courseId=user_question.courseId,
         activityId=user_question.activityId,
         userQuestionId=user_question.id
     )
-    # TODO: When to update the isStudyComplete to True
     # existing_chat_interaction = await get_all_records(ChatInteraction, filter_by={"userQuestionId": user_question.id}, include_related=["chatMessages"])
     existing_chat_interaction = await get_all_records(ChatInteraction, filter_by={"userQuestionId": user_question.id})
     if existing_chat_interaction:
@@ -149,3 +144,23 @@ async def get_chat_messages(chatInteractionId: UUID):
     
     chat_messages = await get_all_records(ChatMessage, filter_by={"chatInteractionId": chatInteractionId})
     return sorted(chat_messages, key=lambda x: x.createdAt)
+
+
+@router.get("/userAssessments/{userAssessmentId}/finalEvaluation", response_model=FinalEvaluationReport)
+async def get_final_evaluation(userAssessmentId: UUID):
+    user_assessment = await get_record(UserAssessment, userAssessmentId)
+    if not user_assessment:
+        raise HTTPException(status_code=404, detail="User assessment not found")
+    
+    user_questions = await get_all_records(UserQuestion, filter_by={"userAssessmentId": userAssessmentId})
+    user_question_chat_interactions = []
+    for question in user_questions:
+        interactions = await get_all_records(ChatInteraction, filter_by={"userQuestionId": question.id})
+        if interactions:
+            user_question_chat_interactions.append({"question": question, "chatInteraction": interactions[0]})
+    
+    if not user_question_chat_interactions:
+        raise HTTPException(status_code=404, detail="No chat interactions found for questions in this assessment")
+    
+    final_evaluation = await generate_final_evaluation_report(user_assessment, user_question_chat_interactions)
+    return final_evaluation

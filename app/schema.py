@@ -31,6 +31,15 @@ class QuestionEvaluation(BaseModel):
 
 class QuestionRefinement(BaseModel):
     questions: List[QuestionEvaluation] = Field(description="List of evaluated and refined questions")
+    
+
+class FinalEvaluationReport(BaseModel):
+    understanding: int = Field(description="Score for the user's understanding of the questions between 1 and 5")
+    approach: int = Field(description="Score for the user's approach to solving the problems between 1 and 5")
+    knowledgeApplication: int = Field(description="Score for how effectively the user applied their knowledge between 1 and 5")
+    learningProgress: int = Field(description="Score for the user's learning progress during the interactions between 1 and 5")
+    finalAccuracy: int = Field(description="Score for the accuracy of the user's final answers between 1 and 5")
+    overallFeedback: str = Field(description="Overall feedback and summary of the user's performance")
 
 
 class ChatInteractionCreateModel(SQLModel):
