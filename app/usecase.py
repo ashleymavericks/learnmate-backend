@@ -1,9 +1,10 @@
+import json
 from app.dependencies.openai_client import openai_chat_completion
 from app.dependencies.http import get
 from uuid import UUID
 from datetime import datetime
-from app.schema import UserQuestion,  QuestionRefinement
-import json
+from app.db_adapter import insert_into_sqlite, get_all_records
+from app.schema import UserQuestion, QuestionRefinement, ChatMessage, ChatMessageTypeEnum, ChatInteraction
 from typing import List
 
 async def evaluate_question_complexity(extracted_question_data: List[UserQuestion]):
@@ -76,3 +77,66 @@ async def extract_data_from_course(course_id: str, activity_id: str, token: str)
             user_questions.append(user_question.model_dump())
     
     return user_questions
+
+
+async def initialize_chat_interaction(user_question: UserQuestion, chat_interaction: ChatInteraction) -> List[ChatMessage]:
+    system_prompt = """You are an AI tutor helping a student understand and answer a question. Provide guidance, explanations, and constructive feedback without ever revealing the correct answer. Only provide hints if explicitly asked. Do not evaluate the user's answer until they confirm it's their final answer. Be strict about these rules."""
+    
+    user_prompt = f"""This is a question with {user_question.questionComplexity.value} complexity: "{user_question.questionText}"
+    
+    The correct answer is: {user_question.correctAnswer}
+    The user's original answer was: {user_question.userAnswer}
+    
+    Initiate the conversation by introducing yourself as an AI tutor. Present the question text to the user. Inform them about the question's complexity level ({user_question.questionComplexity.value}) and the time duration they have to answer it ({user_question.questionDuration} seconds). Ask if they need any help understanding or approaching the question. Remember:
+    1. Never reveal the correct answer.
+    2. Only provide hints if the user explicitly asks for them.
+    3. Do not evaluate the user's answer until they explicitly state it's their final answer.
+    4. Be encouraging but maintain a strict adherence to these rules throughout the interaction."""
+    
+    initial_messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    
+    system_chat_message = ChatMessage(
+        chatInteractionId=chat_interaction.id,
+        message=system_prompt,
+        messageType=ChatMessageTypeEnum.SYSTEM
+    )
+    await insert_into_sqlite(system_chat_message)
+    
+    user_chat_message = ChatMessage(
+        chatInteractionId=chat_interaction.id,
+        message=user_prompt,
+        messageType=ChatMessageTypeEnum.USER
+    )    
+    await insert_into_sqlite(user_chat_message)
+    
+    assistant_response = await openai_chat_completion(
+        payload={"messages": initial_messages}
+    )
+    assistant_chat_message = ChatMessage(
+        chatInteractionId=chat_interaction.id,
+        message=assistant_response,
+        messageType=ChatMessageTypeEnum.ASSISTANT
+    )
+    await insert_into_sqlite(assistant_chat_message)
+    return await get_all_records(ChatMessage, filter_by={"chatInteractionId": chat_interaction.id})
+
+
+async def continue_chat_interaction(chat_messages: List[ChatMessage], chat_interaction: ChatInteraction) -> str:
+    chat_history = []
+    sorted_chat_messages = sorted(chat_messages, key=lambda x: x.createdAt)
+    for message in sorted_chat_messages:
+        chat_history.append({"role": message.messageType.value.lower(), "content": message.message})
+    
+    assistant_response = await openai_chat_completion(
+        payload={"messages": chat_history}
+    )
+    
+    assistant_message = ChatMessage(
+        chatInteractionId=chat_interaction.id,
+        message=assistant_response,
+        messageType="ASSISTANT"
+    )
+    return await insert_into_sqlite(assistant_message)

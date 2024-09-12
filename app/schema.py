@@ -11,12 +11,14 @@ class QuestionTypeEnum(str, Enum):
     SHORT_ANSWER = "SHORT_ANSWER"
     NUMERIC_ANSWER = "NUMERIC_ANSWER"
 
+
 class QuestionComplexityEnum(str, Enum):
     EASY = "EASY"
     MEDIUM = "MEDIUM"
     HARD = "HARD"
     
-class MessageTypeEnum(str, Enum):
+
+class ChatMessageTypeEnum(str, Enum):
     USER = "USER"
     ASSISTANT = "ASSISTANT"
     SYSTEM = "SYSTEM"
@@ -29,6 +31,7 @@ class QuestionEvaluation(BaseModel):
 
 class QuestionRefinement(BaseModel):
     questions: List[QuestionEvaluation] = Field(description="List of evaluated and refined questions")
+
 
 class ChatInteractionCreateModel(SQLModel):
     userQuestionId: UUID = Field(foreign_key="user_question.id")
@@ -43,10 +46,11 @@ class ChatInteraction(ChatInteractionCreateModel, table=True):
     question: "UserQuestion" = Relationship(back_populates="chatInteraction")
     chatMessages: List["ChatMessage"] = Relationship(back_populates="chatInteraction")
 
+
 class ChatMessageCreateModel(SQLModel):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     message: str
-    messageType: str
+    messageType: ChatMessageTypeEnum
 
     
 class ChatMessage(ChatMessageCreateModel, table=True):
@@ -76,13 +80,17 @@ class UserQuestion(SQLModel, table=True):
     userAssessment: "UserAssessment" = Relationship(back_populates="questions")
     chatInteraction: List["ChatInteraction"] = Relationship(back_populates="question")
 
+
 class UserAssessmentUpdateModel(SQLModel):
     questionCountToPractice: int | None = 1
+    
+    
 class UserAssessmentCreateModel(UserAssessmentUpdateModel):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     userId: UUID
     courseId: UUID
     activityId: UUID | None = None
+
 
 class UserAssessment(UserAssessmentCreateModel, table=True):
     __tablename__ = "user_assessment"
