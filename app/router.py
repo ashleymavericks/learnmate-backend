@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from app.schema import UserAssessment, UserQuestion, ChatInteraction, ChatMessage, UserAssessmentCreateModel, \
-    UserAssessmentUpdateModel
+    UserAssessmentUpdateModel, ChatInteractionCreateModel
 from app.usecase import evaluate_question_complexity, extract_data_from_course
 from app.db_adapter import insert_into_sqlite, get_record, get_all_records, update_record
 import random
@@ -96,9 +96,7 @@ async def get_user_assessment(userAssessmentId: UUID, request: Request):
 
 
 @router.put("/chatInteractions", response_model=ChatInteraction)
-async def create_chat_interaction(payload: ChatInteraction, request: Request):
-    payload_dict = payload.model_dump()
-    payload = ChatInteraction.model_validate(payload_dict)
+async def create_chat_interaction(payload: ChatInteractionCreateModel, request: Request):
 
     user_question = await get_record(UserQuestion, payload.userQuestionId)
     if not user_question:

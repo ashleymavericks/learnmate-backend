@@ -30,14 +30,16 @@ class QuestionEvaluation(BaseModel):
 class QuestionRefinement(BaseModel):
     questions: List[QuestionEvaluation] = Field(description="List of evaluated and refined questions")
 
-
-class ChatInteraction(SQLModel, table=True):
-    __tablename__ = "chat_interaction"
+class ChatInteractionCreateModel(BaseModel):
+    userQuestionId: UUID = Field(foreign_key="user_question.id")
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+
+
+class ChatInteraction(ChatInteractionCreateModel, table=True):
+    __tablename__ = "chat_interaction"
     userId: UUID | None = None
     courseId: UUID | None = None
     activityId: UUID | None = None
-    userQuestionId: UUID = Field(foreign_key="user_question.id")
     question: "UserQuestion" = Relationship(back_populates="chatInteraction")
     chatMessages: List["ChatMessage"] = Relationship(back_populates="chatInteraction")
 
