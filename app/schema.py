@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from uuid import UUID, uuid4
 from enum import Enum
 from datetime import datetime
@@ -99,6 +99,12 @@ class UserAssessmentCreateModel(UserAssessmentUpdateModel):
     userId: UUID
     courseId: UUID
     activityId: UUID | None = None
+
+    @field_validator("activityId", mode="before")
+    def validate_activity_id(cls, v):
+        if v == "":
+            return None
+        return v
 
 
 class UserAssessment(UserAssessmentCreateModel, table=True):
